@@ -15,15 +15,51 @@ goes through the small `ae_shell::ui` API in [`ui/include/UiHost.h`](../ui/inclu
 
 ```cpp
 namespace ae_shell::ui {
+    struct EffectInfo { /* match_name, display_name, category, is_third_party */ };
+
     int  run_ui_event_loop();
     void raise_main_window();
     void request_quit();
+
+    void set_effect_library(std::vector<EffectInfo> effects);
+    std::vector<EffectInfo> current_effect_library();
 }
 ```
 
 This keeps a hard wall between AE-side code and Qt-side code: the AEGP layer
-only sees POD types and three free functions, while the UI module is free to
-use any Qt facility.
+only sees POD types and a handful of free functions, while the UI module is
+free to use any Qt facility. The shared `EffectInfo` struct is the single
+"wire" type — AEBridge fills it on the AE thread, the UI panel reads it on
+the Qt thread.
+
+## Data flow: effect library
+
+```
+AE main thread                              Qt UI thread
+──────────────                              ─────────────
+CommandHook                                 (idle: app.exec)
+  AEBridge::EnumerateInstalledEffects()
+    └── AEGP_EffectSuite4::
+        ├── AEGP_GetNumInstalledEffects
+        └── AEGP_GetNextInstalledEffect ×N
+            ├── AEGP_GetEffectMatchName
+            ├── AEGP_GetEffectName
+            └── AEGP_GetEffectCategory
+  ▼
+  std::vector<ui::EffectInfo>
+  ▼
+  ui::set_effect_library(std::move(effects))
+    ├── std::lock_guard on g_effects_mutex
+    └── QMetaObject::invokeMethod( ── queued signal ─►  MainWindow::refreshEffectLibrary()
+            window, refreshEffectLibrary,                   └── EffectLibraryPanel::setEffects(snapshot)
+            Qt::QueuedConnection)                                   └── rebuild + group + sort
+  ▼
+  WindowHost::Instance().Show()  ── first call only ─►  spawn worker, start app.exec()
+```
+
+The plugin re-enumerates on every menu invocation: the cost is a few hundred
+short string copies, and it means newly-installed third-party plugins show
+up the next time the user opens the panel without restarting AE.
 
 ## Process & threads
 
@@ -97,7 +133,7 @@ for it lives in [`cmake/PiPL.cmake`](../cmake/PiPL.cmake).
 See the [README roadmap](../README.md#roadmap) for the full table. Short version:
 
 * **Phase 0** ✅ — scaffold, plugin loads, UI window opens.
-* **Phase 1** — list every installed effect (incl. third-party) in the panel.
+* **Phase 1** ✅ — list every installed effect (incl. third-party) in the panel.
 * **Phase 2** — apply effects to the active layer with one click.
 * **Phase 3+** — custom timeline, drag-and-drop, parameter inspector,
   templates, render queue integration, polish.

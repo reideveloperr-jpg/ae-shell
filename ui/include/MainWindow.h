@@ -16,6 +16,12 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(QWidget* parent = nullptr);
 
+public slots:
+    // Called via QMetaObject::invokeMethod from any thread that calls
+    // ae_shell::ui::set_effect_library().  Reads the latest snapshot from
+    // UiHost and rebuilds the left panel.
+    void refreshEffectLibrary();
+
 private:
     void buildToolbar();
     void buildPanels();

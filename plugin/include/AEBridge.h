@@ -1,28 +1,23 @@
 #pragma once
 
-#include <string>
+#include "UiHost.h"  // canonical EffectInfo lives here, no Qt headers leak
+
 #include <vector>
 
 namespace ae_shell {
 
-// Plain-data view of an installed effect, suitable to ship across the
-// AEGP/Qt thread boundary without dragging AE headers into the UI module.
-struct EffectInfo {
-    std::string match_name;     // unique internal id (e.g. "ADBE Gaussian Blur 2")
-    std::string display_name;   // user-facing name (e.g. "Gaussian Blur")
-    std::string category;       // AE category (e.g. "Blur & Sharpen")
-    bool        is_third_party = false;  // heuristic: not "ADBE ..." prefix
-};
-
-// Façade over the AE SDK's various AEGP suites. Phase 0 only stubs the
-// methods; Phase 1 fills in `EnumerateInstalledEffects`.
+// Façade over the AE SDK's various AEGP suites.
 //
-// Must be called on AE's main thread.
+// All methods must be called on AE's main thread; AE is not thread-safe and
+// most suites assume the caller is the thread that received the suite
+// pointer in EntryPointFunc.
 class AEBridge {
 public:
     // Returns the list of every effect currently registered with AE,
     // including third-party / paid plugins like Sapphire, Trapcode, etc.
-    [[nodiscard]] std::vector<EffectInfo> EnumerateInstalledEffects();
+    // The host doesn't distinguish Adobe-shipped from third-party effects;
+    // we use the "ADBE " match-name prefix as a heuristic for the badge.
+    [[nodiscard]] std::vector<ui::EffectInfo> EnumerateInstalledEffects();
 
     // Phase 2 will add ApplyEffectToActiveLayer, etc.
 };

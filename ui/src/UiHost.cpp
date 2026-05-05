@@ -1,4 +1,5 @@
-// UiHost.cpp — owns the QApplication lifecycle and the main window pointer.
+// UiHost.cpp — owns the QApplication lifecycle, the main window pointer, and
+// the in-memory effect library that the plugin pushes to us.
 //
 // `run_ui_event_loop()` is called from the plugin's worker thread. It must
 // be called exactly once per process. Subsequent menu invocations go through
@@ -17,14 +18,19 @@
 
 #include <atomic>
 #include <mutex>
+#include <utility>
+#include <vector>
 
 namespace ae_shell::ui {
 
 namespace {
 
-std::mutex                  g_mutex;
+std::mutex                  g_window_mutex;
 QPointer<MainWindow>        g_window;
 std::atomic<bool>           g_running{false};
+
+std::mutex                  g_effects_mutex;
+std::vector<EffectInfo>     g_effects;
 
 // Phase 0 keeps argv minimal. We give Qt a single fake program name so it
 // can populate QCoreApplication::arguments() without crashing.
@@ -52,7 +58,7 @@ int run_ui_event_loop() {
 
     MainWindow window;
     {
-        std::lock_guard lk(g_mutex);
+        std::lock_guard lk(g_window_mutex);
         g_window = &window;
     }
     window.show();
@@ -60,7 +66,7 @@ int run_ui_event_loop() {
     const int rc = app.exec();
 
     {
-        std::lock_guard lk(g_mutex);
+        std::lock_guard lk(g_window_mutex);
         g_window = nullptr;
     }
     g_running.store(false);
@@ -70,7 +76,7 @@ int run_ui_event_loop() {
 void raise_main_window() {
     QPointer<MainWindow> w;
     {
-        std::lock_guard lk(g_mutex);
+        std::lock_guard lk(g_window_mutex);
         w = g_window;
     }
     if (!w) return;
@@ -90,6 +96,30 @@ void request_quit() {
             QCoreApplication::quit();
         }, Qt::QueuedConnection);
     }
+}
+
+void set_effect_library(std::vector<EffectInfo> effects) {
+    {
+        std::lock_guard lk(g_effects_mutex);
+        g_effects = std::move(effects);
+    }
+
+    QPointer<MainWindow> w;
+    {
+        std::lock_guard lk(g_window_mutex);
+        w = g_window;
+    }
+    if (!w) return;
+
+    QMetaObject::invokeMethod(w.data(), [w]() {
+        if (!w) return;
+        w->refreshEffectLibrary();
+    }, Qt::QueuedConnection);
+}
+
+std::vector<EffectInfo> current_effect_library() {
+    std::lock_guard lk(g_effects_mutex);
+    return g_effects;
 }
 
 }  // namespace ae_shell::ui
