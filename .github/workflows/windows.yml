@@ -1,0 +1,55 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ui-standalone:
+    name: UI standalone (no AE SDK)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.6.3'
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          cache: true
+          modules: ''
+
+      - name: Configure (UI only)
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+                -G "Visual Studio 17 2022" -A x64 `
+                -DAE_SHELL_BUILD_PLUGIN=OFF `
+                -DAE_SHELL_BUILD_UI=ON `
+                -DAE_SHELL_BUILD_STANDALONE_UI=ON `
+                -DCMAKE_PREFIX_PATH="$env:Qt6_DIR"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Locate artifact
+        id: locate
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem build -Recurse -Filter ae-shell-ui-standalone.exe | Select-Object -First 1
+          if (-not $exe) { throw "Standalone UI binary not produced" }
+          "exe_path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "exe_dir=$($exe.Directory.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Built: $($exe.FullName)"
+
+      - name: Upload standalone UI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ae-shell-ui-standalone-windows-x64
+          path: ${{ steps.locate.outputs.exe_dir }}
+          retention-days: 14

@@ -1,0 +1,114 @@
+/* AE Shell — dark CapCut-ish stylesheet. Layered on top of the Fusion style
+ * configured in Theme.cpp.  Phase 0 keeps it minimal; Phase 7 polishes. */
+
+QMainWindow, QWidget {
+    background-color: #171717;
+    color: #dcdcdc;
+    font-family: "Segoe UI", "SF Pro Text", "Inter", sans-serif;
+    font-size: 12px;
+}
+
+QToolBar {
+    background-color: #1f1f1f;
+    border: 0;
+    spacing: 4px;
+    padding: 4px;
+}
+
+QToolBar QToolButton {
+    background-color: transparent;
+    color: #dcdcdc;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+QToolBar QToolButton:hover  { background-color: #2c2c2c; }
+QToolBar QToolButton:pressed{ background-color: #3a3a3a; }
+
+QStatusBar {
+    background-color: #1a1a1a;
+    color: #9aa0a6;
+    border-top: 1px solid #2a2a2a;
+}
+
+QDockWidget {
+    titlebar-close-icon: none;
+    titlebar-normal-icon: none;
+    color: #dcdcdc;
+}
+QDockWidget::title {
+    background-color: #1f1f1f;
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid #2a2a2a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+QLineEdit {
+    background-color: #1f1f1f;
+    border: 1px solid #2c2c2c;
+    border-radius: 6px;
+    padding: 6px 8px;
+    selection-background-color: #3a78d2;
+}
+QLineEdit:focus { border-color: #3a78d2; }
+
+QListWidget {
+    background-color: #181818;
+    border: 0;
+    outline: 0;
+}
+QListWidget::item {
+    padding: 6px 8px;
+    border-radius: 4px;
+}
+QListWidget::item:hover    { background-color: #232323; }
+QListWidget::item:selected { background-color: #3a78d2; color: white; }
+
+QLabel#viewportHint {
+    color: #6a6a6a;
+    font-style: italic;
+    background-color: #0d0d0d;
+}
+
+QLabel#inspectorTitle {
+    color: #dcdcdc;
+    font-weight: 600;
+    font-size: 13px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+QSlider::groove:horizontal {
+    background: #2a2a2a;
+    height: 4px;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    background: #3a78d2;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+
+QDoubleSpinBox, QSpinBox {
+    background-color: #1f1f1f;
+    border: 1px solid #2c2c2c;
+    border-radius: 6px;
+    padding: 4px 6px;
+    color: #dcdcdc;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+    width: 10px;
+}
+QScrollBar::handle:vertical {
+    background: #2c2c2c;
+    border-radius: 5px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover { background: #3a3a3a; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }

@@ -1,0 +1,72 @@
+# Build directories
+build/
+build-*/
+out/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.ncb
+*.sdf
+*.opensdf
+*.aps
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains
+.idea/
+*.iml
+
+# Compiled binaries
+*.obj
+*.lib
+*.dll
+*.exp
+*.pdb
+*.idb
+*.aex
+*.so
+*.dylib
+*.dSYM/
+
+# Resource intermediates
+*.rsrc
+*.res
+
+# Qt
+*.moc
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+*.qmlc
+*.jsc
+
+# Adobe AE SDK is NDA'd — never commit it
+external/AfterEffectsSDK/
+external/ae-sdk/
+third_party/AfterEffectsSDK/
+ae-sdk/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
