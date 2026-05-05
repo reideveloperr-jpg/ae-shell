@@ -71,13 +71,17 @@ EntryPointFunc(
     // The "\t" splits the menu label into (menu text, shortcut hint). AE
     // shows the first part as the visible menu item and the second part on
     // the right side; we leave the shortcut unset for now.
-    err = suites.CommandSuite1()->AEGP_InstallCommand(
+    // AE 2025 SDK renamed AEGP_InstallCommand -> AEGP_InsertMenuCommand and
+    // dropped the AEGP_MenuID_* prefix in favor of AEGP_Menu_*. The type
+    // AEGP_MenuID is still the parameter type (it's now a typedef of
+    // A_LegacyEnumType). AEGP_MENU_INSERT_AT_BOTTOM is unchanged.
+    err = suites.CommandSuite1()->AEGP_InsertMenuCommand(
         cmd,
         "AE Shell\tAE Shell",
-        AEGP_MenuID_WINDOW,
+        AEGP_Menu_WINDOW,
         AEGP_MENU_INSERT_AT_BOTTOM);
     if (err) {
-        log::Error("AEGP_InstallCommand failed");
+        log::Error("AEGP_InsertMenuCommand failed");
         return err;
     }
 
