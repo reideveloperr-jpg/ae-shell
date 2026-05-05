@@ -44,13 +44,21 @@ function(ae_shell_add_pipl_resource TARGET)
 
     # Stage 1: pre-process the .r file with cl.exe so PiPLtool sees a single
     # flat file with all `#include`s expanded.
+    #
+    # We use `/P /EP /Fi:<path>` instead of `/EP > file` because in a CMake
+    # add_custom_command(VERBATIM) the `>` is *not* interpreted as a shell
+    # redirect — it gets passed through as a literal argv to cl.exe, which
+    # then errors with "The syntax of the command is incorrect" and never
+    # writes the .rr file. `/Fi:<path>` makes cl write the preprocessed
+    # output directly to disk, no shell needed.
     add_custom_command(
         OUTPUT  "${RR_FILE}"
         COMMAND "${CMAKE_C_COMPILER}"
-                /nologo /EP /D "MSWindows" /Tc "${ARG_PIPL_FILE}"
-                ${PIPL_INC_FLAGS} > "${RR_FILE}"
+                /nologo /P /EP /D "MSWindows" /Tc "${ARG_PIPL_FILE}"
+                "/Fi${RR_FILE}"
+                ${PIPL_INC_FLAGS}
         DEPENDS "${ARG_PIPL_FILE}"
-        COMMENT "Pre-processing PiPL ${PIPL_NAME}.r"
+        COMMENT "Pre-processing PiPL ${PIPL_NAME}.r -> ${PIPL_NAME}.rr"
         VERBATIM)
 
     # Stage 2: PiPLtool turns the pre-processed .rr into a Windows .rrc that
