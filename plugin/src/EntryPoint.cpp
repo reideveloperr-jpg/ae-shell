@@ -130,6 +130,29 @@ A_Err EntryPointBody(
 
 }  // namespace
 
+#if defined(_WIN32)
+// SEH-guarded shim around EntryPointBody. MSVC's /EHsc model forbids
+// __try/__except in any function that has objects requiring C++ unwinding
+// (error C2712), including temporaries from std::string concatenation.
+// This wrapper therefore holds NO destructible C++ objects -- it traffics
+// only in POD types (DWORD, A_Err) and forwards crashes via an out-pointer
+// for the caller to log with regular std::string-based logging.
+static A_Err EntryPointSehGuard(
+    SPBasicSuite*  pica_basicP,
+    AEGP_PluginID  aegp_plugin_id,
+    DWORD*         out_seh_code) noexcept
+{
+    *out_seh_code = 0;
+    __try {
+        return EntryPointBody(pica_basicP, aegp_plugin_id);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        *out_seh_code = GetExceptionCode();
+        return A_Err_GENERIC;
+    }
+}
+#endif
+
 AE_SHELL_EXPORT A_Err
 EntryPointFunc(
     SPBasicSuite*       pica_basicP,
@@ -155,20 +178,14 @@ EntryPointFunc(
     A_Err err = A_Err_NONE;
 
 #if defined(_WIN32)
-    // Trap any structured exception (access violation, illegal instruction,
-    // etc.) so we always leave a final breadcrumb in the log even if AE then
-    // tears down the plugin process.
-    __try {
-        err = EntryPointBody(pica_basicP, aegp_plugin_id);
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        DWORD code = GetExceptionCode();
-        char  buf[64] = {};
+    DWORD seh_code = 0;
+    err = EntryPointSehGuard(pica_basicP, aegp_plugin_id, &seh_code);
+    if (seh_code != 0) {
+        char buf[80] = {};
         std::snprintf(buf, sizeof(buf),
             "SEH exception in EntryPointBody, code=0x%08lx",
-            static_cast<unsigned long>(code));
+            static_cast<unsigned long>(seh_code));
         log::Error(buf);
-        return A_Err_GENERIC;
     }
 #else
     err = EntryPointBody(pica_basicP, aegp_plugin_id);
