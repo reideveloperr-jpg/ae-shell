@@ -43,13 +43,18 @@ endif()
 
 get_filename_component(ADOBE_AE_SDK_ROOT "${ADOBE_AE_SDK}" ABSOLUTE)
 
-# The AE SDK has historically used a few different folder layouts. Search for
-# the canonical headers in a couple of likely places.
+# The AE SDK folder layout has changed across versions:
+#   * Pre-2024: <root>/Headers, <root>/Resources, <root>/SP
+#   * AE 2025+ (Zstandard archive): <root>/Examples/Headers, <root>/Examples/Resources,
+#                                   <root>/Examples/Headers/SP
+# We search both layouts so the same env var works regardless.
 find_path(ADOBE_AE_SDK_INCLUDE_DIR
     NAMES AE_GeneralPlug.h
     HINTS
         "${ADOBE_AE_SDK_ROOT}/Headers"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Headers"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Headers"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers"
         "${ADOBE_AE_SDK_ROOT}/SDK/Headers"
     NO_DEFAULT_PATH)
 
@@ -58,14 +63,18 @@ find_path(ADOBE_AE_SDK_SP_INCLUDE_DIR
     HINTS
         "${ADOBE_AE_SDK_INCLUDE_DIR}/SP"
         "${ADOBE_AE_SDK_ROOT}/Headers/SP"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Headers/SP"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Headers/SP"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers/SP"
     NO_DEFAULT_PATH)
 
 find_path(ADOBE_AE_SDK_RESOURCES_DIR
     NAMES AE_PluginData.h
     HINTS
         "${ADOBE_AE_SDK_ROOT}/Resources"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Resources"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Resources"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Resources"
     NO_DEFAULT_PATH)
 
 if(WIN32)
@@ -74,7 +83,9 @@ if(WIN32)
         HINTS
             "${ADOBE_AE_SDK_RESOURCES_DIR}"
             "${ADOBE_AE_SDK_ROOT}/Resources"
+            "${ADOBE_AE_SDK_ROOT}/Examples/Resources"
             "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Resources"
+            "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Resources"
         NO_DEFAULT_PATH)
 endif()
 
