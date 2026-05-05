@@ -56,7 +56,7 @@ phase breakdown.
 | Adobe AE SDK | **2025** | Free download, requires Adobe ID. **Not** redistributable, never committed to this repo. |
 | Visual Studio | **2022** (Community is fine) | Workload: *Desktop development with C++*. |
 | Qt | **6.6+** (`win64_msvc2019_64` build is what Qt ships for 6.6/6.7; ABI-compatible with VS 2022) | LGPL build, free for this use. |
-| CMake | **3.22+** | Bundled with VS 2022 is fine. |
+| CMake | **3.20+** | Bundled with VS 2019/2022 is fine. |
 
 ---
 
