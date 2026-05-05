@@ -90,10 +90,17 @@ void MainWindow::buildStatusBar() {
 
 void MainWindow::refreshEffectLibrary() {
     if (!m_library) return;
-    m_library->setEffects(current_effect_library());
+
+    // Snapshot once so the panel and the status-bar count are guaranteed to
+    // reflect the same view of the data. Calling current_effect_library()
+    // twice would race against set_effect_library() being invoked from the
+    // AE thread between the two calls, and would also mean two mutex-locked
+    // full-vector copies instead of one.
+    const auto effects = current_effect_library();
+    const std::size_t n = effects.size();
+    m_library->setEffects(effects);
 
     if (m_status) {
-        const std::size_t n = current_effect_library().size();
         if (n == 0) {
             m_status->showMessage(tr("AE Shell — standalone preview (no AE host)"));
         } else {
