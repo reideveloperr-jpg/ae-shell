@@ -12,6 +12,11 @@ add_library(ae-shell SHARED
     # the .cpp the linker errors with unresolved externals on every
     # AEGP_SuiteHandler member function.
     "${ADOBE_AE_SDK_SUITE_HANDLER_CPP}"
+    # MissingSuiteError.cpp defines AEGP_SuiteHandler::MissingSuiteError(),
+    # which AEGP_SuiteHandler.cpp calls when a requested suite is unavailable.
+    # Adobe split this single helper into its own .cpp so other utility
+    # classes can reuse it; we have to compile it alongside.
+    "${ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP}"
 )
 
 target_include_directories(ae-shell PRIVATE include)

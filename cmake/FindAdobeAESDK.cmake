@@ -91,6 +91,19 @@ find_file(ADOBE_AE_SDK_SUITE_HANDLER_CPP
         "${ADOBE_AE_SDK_ROOT}/Examples/Util"
     NO_DEFAULT_PATH)
 
+# AEGP_SuiteHandler.cpp calls AEGP_SuiteHandler::MissingSuiteError(), but
+# MissingSuiteError is implemented in a SEPARATE Util .cpp (Adobe split it
+# out so it can be reused by other helper classes). Without compiling
+# MissingSuiteError.cpp, linking fails with LNK2019/LNK2001 unresolved
+# external on every translation unit that includes AEGP_SuiteHandler.h.
+find_file(ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP
+    NAMES MissingSuiteError.cpp
+    HINTS
+        "${ADOBE_AE_SDK_UTIL_DIR}"
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+    NO_DEFAULT_PATH)
+
 # PiPLtool.exe is the most reliable anchor for the Resources/ folder across
 # SDK versions. (In pre-2024 SDKs we could anchor on AE_PluginData.h, but
 # Adobe moved that file into Headers/ starting with the AE 2025 release.)
@@ -123,7 +136,8 @@ find_package_handle_standard_args(AdobeAESDK
         ADOBE_AE_SDK_SP_INCLUDE_DIR
         ADOBE_AE_SDK_RESOURCES_DIR
         ADOBE_AE_SDK_UTIL_DIR
-        ADOBE_AE_SDK_SUITE_HANDLER_CPP)
+        ADOBE_AE_SDK_SUITE_HANDLER_CPP
+        ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP)
 
 if(WIN32 AND NOT ADOBE_AE_SDK_PIPLTOOL)
     message(WARNING
@@ -158,4 +172,5 @@ mark_as_advanced(
     ADOBE_AE_SDK_RESOURCES_DIR
     ADOBE_AE_SDK_UTIL_DIR
     ADOBE_AE_SDK_SUITE_HANDLER_CPP
+    ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP
     ADOBE_AE_SDK_PIPLTOOL)
