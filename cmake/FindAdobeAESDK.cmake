@@ -107,13 +107,24 @@ if(WIN32 AND NOT ADOBE_AE_SDK_PIPLTOOL)
         "to load it. Make sure your AE SDK download is complete.")
 endif()
 
-if(ADOBE_AE_SDK_FOUND AND NOT TARGET AdobeAESDK::AdobeAESDK)
+# find_package_handle_standard_args(AdobeAESDK ...) sets AdobeAESDK_FOUND
+# (matching the package name passed as the first argument). It does NOT set
+# the legacy uppercase ADOBE_AE_SDK_FOUND on every CMake version (e.g. 3.20
+# leaves it empty), so we must check the correctly-cased variable here or
+# the imported target will never be created and downstream targets will
+# fail with 'links to target "AdobeAESDK::AdobeAESDK" but the target was
+# not found'.
+if(AdobeAESDK_FOUND AND NOT TARGET AdobeAESDK::AdobeAESDK)
     add_library(AdobeAESDK::AdobeAESDK INTERFACE IMPORTED)
     target_include_directories(AdobeAESDK::AdobeAESDK INTERFACE
         "${ADOBE_AE_SDK_INCLUDE_DIR}"
         "${ADOBE_AE_SDK_SP_INCLUDE_DIR}"
         "${ADOBE_AE_SDK_RESOURCES_DIR}")
 endif()
+
+# Mirror the legacy uppercase variant for callers that expected the older
+# convention.
+set(ADOBE_AE_SDK_FOUND ${AdobeAESDK_FOUND})
 
 mark_as_advanced(
     ADOBE_AE_SDK_INCLUDE_DIR
