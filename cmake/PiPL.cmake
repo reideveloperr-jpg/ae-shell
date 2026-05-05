@@ -37,20 +37,37 @@ function(ae_shell_add_pipl_resource TARGET)
     set(RC_FILE  "${GEN_DIR}/${PIPL_NAME}.rrc")
     file(MAKE_DIRECTORY "${GEN_DIR}")
 
-    set(PIPL_INC_FLAGS "")
+    set(_pipl_includes "")
     foreach(_inc IN LISTS ARG_PIPL_INCLUDES ADOBE_AE_SDK_INCLUDE_DIR ADOBE_AE_SDK_RESOURCES_DIR)
-        list(APPEND PIPL_INC_FLAGS "-I${_inc}")
+        list(APPEND _pipl_includes "${_inc}")
     endforeach()
 
     # Stage 1: pre-process the .r file with cl.exe so PiPLtool sees a single
     # flat file with all `#include`s expanded.
+    #
+    # We drive cl through a `cmake -P` helper script rather than calling cl
+    # directly from add_custom_command, because add_custom_command(VERBATIM)
+    # does not invoke a shell, so a stdout `>` redirect would be passed as
+    # a literal argv to cl. The helper uses execute_process(... OUTPUT_FILE)
+    # to capture cl's stdout into the .rr file safely.
+    # cl.exe handles both C and C++ on MSVC -- there is just one binary, and
+    # the language is selected by /Tc vs /Tp. We use CMAKE_CXX_COMPILER here
+    # rather than CMAKE_C_COMPILER because the project enables `LANGUAGES CXX`
+    # only, so CMAKE_C_COMPILER is not initialized and would be empty,
+    # causing the helper to abort with "CL_PATH not set". /Tc inside the
+    # helper still forces C-language pre-processing for the .r file.
+    set(_pipl_helper "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/preprocess_pipl.cmake")
     add_custom_command(
         OUTPUT  "${RR_FILE}"
-        COMMAND "${CMAKE_C_COMPILER}"
-                /nologo /EP /D "MSWindows" /Tc "${ARG_PIPL_FILE}"
-                ${PIPL_INC_FLAGS} > "${RR_FILE}"
-        DEPENDS "${ARG_PIPL_FILE}"
-        COMMENT "Pre-processing PiPL ${PIPL_NAME}.r"
+        COMMAND "${CMAKE_COMMAND}"
+                "-DCL_PATH=${CMAKE_CXX_COMPILER}"
+                "-DSOURCE=${ARG_PIPL_FILE}"
+                "-DOUTPUT=${RR_FILE}"
+                "-DINCLUDES=${_pipl_includes}"
+                "-DDEFINES=MSWindows"
+                -P "${_pipl_helper}"
+        DEPENDS "${ARG_PIPL_FILE}" "${_pipl_helper}"
+        COMMENT "Pre-processing PiPL ${PIPL_NAME}.r -> ${PIPL_NAME}.rr"
         VERBATIM)
 
     # Stage 2: PiPLtool turns the pre-processed .rr into a Windows .rrc that

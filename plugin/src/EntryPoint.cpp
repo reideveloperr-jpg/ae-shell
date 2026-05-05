@@ -7,6 +7,12 @@
 #include <AE_GeneralPlug.h>
 #include <AEGP_SuiteHandler.h>
 
+#if defined(_WIN32)
+#   include <windows.h>
+#endif
+
+#include <cstdio>
+
 #include "AEBridge.h"
 #include "Logging.h"
 #include "PluginGlobals.h"
@@ -41,18 +47,24 @@ A_Err UpdateMenuHook(
 
 }  // namespace ae_shell
 
-AE_SHELL_EXPORT A_Err
-EntryPointFunc(
+namespace {
+
+// Helper to convert an A_Err to a printable hex string. AE's A_Err is just
+// an int with implementation-defined codes; the actual values are documented
+// in AE_GeneralPlug.h but for diagnostic logging we just want the raw value.
+std::string ErrToHex(A_Err err) {
+    char buf[32] = {};
+    std::snprintf(buf, sizeof(buf), "0x%08lx", static_cast<unsigned long>(err));
+    return buf;
+}
+
+A_Err EntryPointBody(
     SPBasicSuite*       pica_basicP,
-    A_long              /*major_versionL*/,
-    A_long              /*minor_versionL*/,
-    AEGP_PluginID       aegp_plugin_id,
-    AEGP_GlobalRefcon*  /*global_refconP*/)
+    AEGP_PluginID       aegp_plugin_id)
 {
     using namespace ae_shell;
 
-    log::Init();
-    log::Info("AE Shell: EntryPointFunc invoked");
+    log::Info("Entered EntryPointBody, instantiating SuiteHandler");
 
     Globals().basic_suite = pica_basicP;
     Globals().plugin_id   = aegp_plugin_id;
@@ -61,26 +73,35 @@ EntryPointFunc(
 
     A_Err err = A_Err_NONE;
 
+    log::Info("Calling AEGP_GetUniqueCommand");
     AEGP_Command cmd = 0;
     err = suites.CommandSuite1()->AEGP_GetUniqueCommand(&cmd);
     if (err) {
-        log::Error("AEGP_GetUniqueCommand failed");
+        log::Error("AEGP_GetUniqueCommand failed: " + ErrToHex(err));
         return err;
     }
+    log::Info("AEGP_GetUniqueCommand ok, cmd=" + std::to_string(cmd));
 
     // The "\t" splits the menu label into (menu text, shortcut hint). AE
     // shows the first part as the visible menu item and the second part on
     // the right side; we leave the shortcut unset for now.
-    err = suites.CommandSuite1()->AEGP_InstallCommand(
+    // AE 2025 SDK renamed AEGP_InstallCommand -> AEGP_InsertMenuCommand and
+    // dropped the AEGP_MenuID_* prefix in favor of AEGP_Menu_*. The type
+    // AEGP_MenuID is still the parameter type (it's now a typedef of
+    // A_LegacyEnumType). AEGP_MENU_INSERT_AT_BOTTOM is unchanged.
+    log::Info("Calling AEGP_InsertMenuCommand");
+    err = suites.CommandSuite1()->AEGP_InsertMenuCommand(
         cmd,
         "AE Shell\tAE Shell",
-        AEGP_MenuID_WINDOW,
+        AEGP_Menu_WINDOW,
         AEGP_MENU_INSERT_AT_BOTTOM);
     if (err) {
-        log::Error("AEGP_InstallCommand failed");
+        log::Error("AEGP_InsertMenuCommand failed: " + ErrToHex(err));
         return err;
     }
+    log::Info("AEGP_InsertMenuCommand ok");
 
+    log::Info("Calling AEGP_RegisterCommandHook");
     err = suites.RegisterSuite5()->AEGP_RegisterCommandHook(
         aegp_plugin_id,
         AEGP_HP_BeforeAE,
@@ -88,20 +109,92 @@ EntryPointFunc(
         &CommandHook,
         nullptr);
     if (err) {
-        log::Error("AEGP_RegisterCommandHook failed");
+        log::Error("AEGP_RegisterCommandHook failed: " + ErrToHex(err));
         return err;
     }
 
+    log::Info("Calling AEGP_RegisterUpdateMenuHook");
     err = suites.RegisterSuite5()->AEGP_RegisterUpdateMenuHook(
         aegp_plugin_id,
         &UpdateMenuHook,
         nullptr);
     if (err) {
-        log::Error("AEGP_RegisterUpdateMenuHook failed");
+        log::Error("AEGP_RegisterUpdateMenuHook failed: " + ErrToHex(err));
         return err;
     }
 
     Globals().show_window_cmd = cmd;
-    log::Info("AE Shell: menu command registered");
+    log::Info("AE Shell: menu command registered successfully");
     return A_Err_NONE;
+}
+
+}  // namespace
+
+#if defined(_WIN32)
+// SEH-guarded shim around EntryPointBody. MSVC's /EHsc model forbids
+// __try/__except in any function that has objects requiring C++ unwinding
+// (error C2712), including temporaries from std::string concatenation.
+// This wrapper therefore holds NO destructible C++ objects -- it traffics
+// only in POD types (DWORD, A_Err) and forwards crashes via an out-pointer
+// for the caller to log with regular std::string-based logging.
+static A_Err EntryPointSehGuard(
+    SPBasicSuite*  pica_basicP,
+    AEGP_PluginID  aegp_plugin_id,
+    DWORD*         out_seh_code) noexcept
+{
+    *out_seh_code = 0;
+    __try {
+        return EntryPointBody(pica_basicP, aegp_plugin_id);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        *out_seh_code = GetExceptionCode();
+        return A_Err_GENERIC;
+    }
+}
+#endif
+
+AE_SHELL_EXPORT A_Err
+EntryPointFunc(
+    SPBasicSuite*       pica_basicP,
+    A_long              major_versionL,
+    A_long              minor_versionL,
+    AEGP_PluginID       aegp_plugin_id,
+    AEGP_GlobalRefcon*  /*global_refconP*/)
+{
+    using namespace ae_shell;
+
+    // Push to the debugger stream BEFORE we touch logging or anything else
+    // -- if our DLL crashes during a static initializer or AE terminates the
+    // process before our log file flushes, this is the only trace left.
+#if defined(_WIN32)
+    OutputDebugStringA("[ae-shell] EntryPointFunc: native entry point invoked\n");
+#endif
+
+    log::Init();
+    log::Info("AE Shell: EntryPointFunc invoked, host AE version " +
+              std::to_string(major_versionL) + "." +
+              std::to_string(minor_versionL));
+
+    A_Err err = A_Err_NONE;
+
+#if defined(_WIN32)
+    DWORD seh_code = 0;
+    err = EntryPointSehGuard(pica_basicP, aegp_plugin_id, &seh_code);
+    if (seh_code != 0) {
+        char buf[80] = {};
+        std::snprintf(buf, sizeof(buf),
+            "SEH exception in EntryPointBody, code=0x%08lx",
+            static_cast<unsigned long>(seh_code));
+        log::Error(buf);
+    }
+#else
+    err = EntryPointBody(pica_basicP, aegp_plugin_id);
+#endif
+
+    if (err) {
+        log::Error("EntryPointFunc returning err " + ErrToHex(err));
+    } else {
+        log::Info("EntryPointFunc returning A_Err_NONE");
+    }
+    return err;
 }

@@ -56,7 +56,7 @@ phase breakdown.
 | Adobe AE SDK | **2025** | Free download, requires Adobe ID. **Not** redistributable, never committed to this repo. |
 | Visual Studio | **2022** (Community is fine) | Workload: *Desktop development with C++*. |
 | Qt | **6.6+** (`win64_msvc2019_64` build is what Qt ships for 6.6/6.7; ABI-compatible with VS 2022) | LGPL build, free for this use. |
-| CMake | **3.22+** | Bundled with VS 2022 is fine. |
+| CMake | **3.20+** | Bundled with VS 2019/2022 is fine. |
 
 ---
 
@@ -71,18 +71,47 @@ Via Adobe Creative Cloud Desktop:
 
 1. Go to <https://developer.adobe.com/after-effects/>.
 2. Click **Get the SDK** → sign in with Adobe ID.
-3. Download `AfterEffectsSDK_Win_<date>.zip` for AE 2025.
-4. Unzip to a stable path, e.g. `C:\dev\AdobeAfterEffectsSDK`.
-5. Set the environment variable `ADOBE_AE_SDK` to that path:
+3. Download the Windows SDK archive (e.g. `AfterEffectsSDK_25.6_61_win.zip` for AE 2025).
+4. Unzip to a stable path, e.g. `C:\dev\AfterEffectsSDK_25.6_61_win`.
+5. **AE 2025 only — second-stage extraction.** Adobe ships the SDK 2025
+   inside a Zstandard-compressed archive (`ae<ver>.64bit.AfterEffectsSDK.zstd.zip`).
+   Inside the unzipped folder you will see:
 
-   ```powershell
-   [Environment]::SetEnvironmentVariable("ADOBE_AE_SDK", "C:\dev\AdobeAfterEffectsSDK", "User")
+   ```
+   AfterEffectsSDK_25.6_61_win/
+     7-Zip-Zstandard/                       (helper extractor)
+     ae25.6_61.64bit.AfterEffectsSDK.zstd.zip
+     extractzstd.bat                        ← run this
+     README-HowToExtractZstdBuild-Win.txt
    ```
 
-   Restart your shell (or VS) afterwards.
+   Double-click `extractzstd.bat` (accept admin/SmartScreen prompts). It
+   unpacks the SDK into a sibling folder named
+   `ae<ver>.64bit.AfterEffectsSDK/`. After this step the headers are at
+   `ae<ver>.64bit.AfterEffectsSDK\Examples\Headers\`.
+
+6. Set the environment variable `ADOBE_AE_SDK` to the **inner** SDK folder
+   (the one containing `Examples/`):
+
+   ```powershell
+   [Environment]::SetEnvironmentVariable(
+       "ADOBE_AE_SDK",
+       "C:\dev\AfterEffectsSDK_25.6_61_win\ae25.6_61.64bit.AfterEffectsSDK",
+       "User")
+   ```
+
+   Restart your shell (or Visual Studio) afterwards. Verify:
+
+   ```powershell
+   Test-Path "$env:ADOBE_AE_SDK\Examples\Headers\AE_GeneralPlug.h"  # → True
+   ```
 
 The SDK is **never** committed to this repository (Adobe NDA). Each developer
 must download it locally.
+
+> Pre-2024 SDKs used a flat `<root>/Headers` layout instead of
+> `<root>/Examples/Headers`. `cmake/FindAdobeAESDK.cmake` searches both, so
+> either layout works.
 
 ### 3. Install Qt 6
 

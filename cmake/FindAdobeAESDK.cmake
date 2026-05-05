@@ -43,13 +43,18 @@ endif()
 
 get_filename_component(ADOBE_AE_SDK_ROOT "${ADOBE_AE_SDK}" ABSOLUTE)
 
-# The AE SDK has historically used a few different folder layouts. Search for
-# the canonical headers in a couple of likely places.
+# The AE SDK folder layout has changed across versions:
+#   * Pre-2024: <root>/Headers, <root>/Resources, <root>/SP
+#   * AE 2025+ (Zstandard archive): <root>/Examples/Headers, <root>/Examples/Resources,
+#                                   <root>/Examples/Headers/SP
+# We search both layouts so the same env var works regardless.
 find_path(ADOBE_AE_SDK_INCLUDE_DIR
     NAMES AE_GeneralPlug.h
     HINTS
         "${ADOBE_AE_SDK_ROOT}/Headers"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Headers"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Headers"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers"
         "${ADOBE_AE_SDK_ROOT}/SDK/Headers"
     NO_DEFAULT_PATH)
 
@@ -58,14 +63,57 @@ find_path(ADOBE_AE_SDK_SP_INCLUDE_DIR
     HINTS
         "${ADOBE_AE_SDK_INCLUDE_DIR}/SP"
         "${ADOBE_AE_SDK_ROOT}/Headers/SP"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Headers/SP"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Headers/SP"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers/SP"
     NO_DEFAULT_PATH)
 
+# AEGP_SuiteHandler.{h,cpp} live in the SDK's Util/ folder. We need both
+# the directory on the include path AND the .cpp added to plugin sources
+# (it defines the AEGP_SuiteHandler class methods that EntryPoint.cpp etc.
+# call into).
+find_path(ADOBE_AE_SDK_UTIL_DIR
+    NAMES AEGP_SuiteHandler.h
+    HINTS
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Util"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Util"
+        "${ADOBE_AE_SDK_INCLUDE_DIR}/Util"
+        "${ADOBE_AE_SDK_INCLUDE_DIR}"
+    NO_DEFAULT_PATH)
+
+find_file(ADOBE_AE_SDK_SUITE_HANDLER_CPP
+    NAMES AEGP_SuiteHandler.cpp
+    HINTS
+        "${ADOBE_AE_SDK_UTIL_DIR}"
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+    NO_DEFAULT_PATH)
+
+# AEGP_SuiteHandler.cpp calls AEGP_SuiteHandler::MissingSuiteError(), but
+# MissingSuiteError is implemented in a SEPARATE Util .cpp (Adobe split it
+# out so it can be reused by other helper classes). Without compiling
+# MissingSuiteError.cpp, linking fails with LNK2019/LNK2001 unresolved
+# external on every translation unit that includes AEGP_SuiteHandler.h.
+find_file(ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP
+    NAMES MissingSuiteError.cpp
+    HINTS
+        "${ADOBE_AE_SDK_UTIL_DIR}"
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+    NO_DEFAULT_PATH)
+
+# PiPLtool.exe is the most reliable anchor for the Resources/ folder across
+# SDK versions. (In pre-2024 SDKs we could anchor on AE_PluginData.h, but
+# Adobe moved that file into Headers/ starting with the AE 2025 release.)
 find_path(ADOBE_AE_SDK_RESOURCES_DIR
-    NAMES AE_PluginData.h
+    NAMES PiPLtool.exe PIPL.h AE_PluginData.h
     HINTS
         "${ADOBE_AE_SDK_ROOT}/Resources"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Resources"
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Resources"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Resources"
     NO_DEFAULT_PATH)
 
 if(WIN32)
@@ -74,7 +122,9 @@ if(WIN32)
         HINTS
             "${ADOBE_AE_SDK_RESOURCES_DIR}"
             "${ADOBE_AE_SDK_ROOT}/Resources"
+            "${ADOBE_AE_SDK_ROOT}/Examples/Resources"
             "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Resources"
+            "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Resources"
         NO_DEFAULT_PATH)
 endif()
 
@@ -84,7 +134,10 @@ find_package_handle_standard_args(AdobeAESDK
         ADOBE_AE_SDK_ROOT
         ADOBE_AE_SDK_INCLUDE_DIR
         ADOBE_AE_SDK_SP_INCLUDE_DIR
-        ADOBE_AE_SDK_RESOURCES_DIR)
+        ADOBE_AE_SDK_RESOURCES_DIR
+        ADOBE_AE_SDK_UTIL_DIR
+        ADOBE_AE_SDK_SUITE_HANDLER_CPP
+        ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP)
 
 if(WIN32 AND NOT ADOBE_AE_SDK_PIPLTOOL)
     message(WARNING
@@ -93,16 +146,31 @@ if(WIN32 AND NOT ADOBE_AE_SDK_PIPLTOOL)
         "to load it. Make sure your AE SDK download is complete.")
 endif()
 
-if(ADOBE_AE_SDK_FOUND AND NOT TARGET AdobeAESDK::AdobeAESDK)
+# find_package_handle_standard_args(AdobeAESDK ...) sets AdobeAESDK_FOUND
+# (matching the package name passed as the first argument). It does NOT set
+# the legacy uppercase ADOBE_AE_SDK_FOUND on every CMake version (e.g. 3.20
+# leaves it empty), so we must check the correctly-cased variable here or
+# the imported target will never be created and downstream targets will
+# fail with 'links to target "AdobeAESDK::AdobeAESDK" but the target was
+# not found'.
+if(AdobeAESDK_FOUND AND NOT TARGET AdobeAESDK::AdobeAESDK)
     add_library(AdobeAESDK::AdobeAESDK INTERFACE IMPORTED)
     target_include_directories(AdobeAESDK::AdobeAESDK INTERFACE
         "${ADOBE_AE_SDK_INCLUDE_DIR}"
         "${ADOBE_AE_SDK_SP_INCLUDE_DIR}"
-        "${ADOBE_AE_SDK_RESOURCES_DIR}")
+        "${ADOBE_AE_SDK_RESOURCES_DIR}"
+        "${ADOBE_AE_SDK_UTIL_DIR}")
 endif()
+
+# Mirror the legacy uppercase variant for callers that expected the older
+# convention.
+set(ADOBE_AE_SDK_FOUND ${AdobeAESDK_FOUND})
 
 mark_as_advanced(
     ADOBE_AE_SDK_INCLUDE_DIR
     ADOBE_AE_SDK_SP_INCLUDE_DIR
     ADOBE_AE_SDK_RESOURCES_DIR
+    ADOBE_AE_SDK_UTIL_DIR
+    ADOBE_AE_SDK_SUITE_HANDLER_CPP
+    ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP
     ADOBE_AE_SDK_PIPLTOOL)

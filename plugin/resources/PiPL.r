@@ -36,6 +36,15 @@ resource 'PiPL' (16000) {
         #endif
     #endif
 #endif
+// AE_PluginVersion is declared in <AE_General.r>, which is only #include'd
+// on Mac (it's a Rez-only header that the Windows toolchain pre-processes
+// PiPL.r without). Emitting AE_PluginVersion on Windows therefore causes
+// PiPLtool to fail with "ParsePiPLBody: Unexpected Token". Restrict it to
+// non-Windows targets; AE does not require this property to load the
+// plugin and the VS_VERSION_INFO resource on Windows already carries the
+// plugin's version.
+#ifndef AE_OS_WIN
         AE_PluginVersion { PF_PLUG_IN_VERSION, PF_PLUG_IN_SUBVERS },
+#endif
     }
 };

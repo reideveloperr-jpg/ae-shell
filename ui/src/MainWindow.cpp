@@ -3,6 +3,7 @@
 #include "EffectLibraryPanel.h"
 #include "InspectorPanel.h"
 #include "TimelinePanel.h"
+#include "UiHost.h"
 
 #include <QAction>
 #include <QDockWidget>
@@ -23,6 +24,9 @@ MainWindow::MainWindow(QWidget* parent)
     buildToolbar();
     buildPanels();
     buildStatusBar();
+
+    // Pull whatever effect library the plugin has already pushed to us.
+    refreshEffectLibrary();
 }
 
 void MainWindow::buildToolbar() {
@@ -81,7 +85,28 @@ void MainWindow::buildPanels() {
 
 void MainWindow::buildStatusBar() {
     m_status = statusBar();
-    m_status->showMessage(tr("AE Shell — Phase 0 scaffold"));
+    m_status->showMessage(tr("AE Shell — Phase 1 (effect library)"));
+}
+
+void MainWindow::refreshEffectLibrary() {
+    if (!m_library) return;
+
+    // Snapshot once so the panel and the status-bar count are guaranteed to
+    // reflect the same view of the data. Calling current_effect_library()
+    // twice would race against set_effect_library() being invoked from the
+    // AE thread between the two calls, and would also mean two mutex-locked
+    // full-vector copies instead of one.
+    const auto effects = current_effect_library();
+    const std::size_t n = effects.size();
+    m_library->setEffects(effects);
+
+    if (m_status) {
+        if (n == 0) {
+            m_status->showMessage(tr("AE Shell — standalone preview (no AE host)"));
+        } else {
+            m_status->showMessage(tr("AE Shell — %1 installed effects").arg(n));
+        }
+    }
 }
 
 }  // namespace ae_shell::ui

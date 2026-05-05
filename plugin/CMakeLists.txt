@@ -6,6 +6,17 @@ add_library(ae-shell SHARED
     src/AEBridge.cpp
     src/WindowHost.cpp
     src/Logging.cpp
+    # AEGP_SuiteHandler.cpp ships in the AE SDK's Util/ folder and defines
+    # the suite-caching class that EntryPoint.cpp / Commands.cpp use to
+    # access AEGP_*Suite vtables. The header alone isn't enough -- without
+    # the .cpp the linker errors with unresolved externals on every
+    # AEGP_SuiteHandler member function.
+    "${ADOBE_AE_SDK_SUITE_HANDLER_CPP}"
+    # MissingSuiteError.cpp defines AEGP_SuiteHandler::MissingSuiteError(),
+    # which AEGP_SuiteHandler.cpp calls when a requested suite is unavailable.
+    # Adobe split this single helper into its own .cpp so other utility
+    # classes can reuse it; we have to compile it alongside.
+    "${ADOBE_AE_SDK_MISSING_SUITE_ERROR_CPP}"
 )
 
 target_include_directories(ae-shell PRIVATE include)
