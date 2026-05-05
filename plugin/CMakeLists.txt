@@ -6,6 +6,12 @@ add_library(ae-shell SHARED
     src/AEBridge.cpp
     src/WindowHost.cpp
     src/Logging.cpp
+    # AEGP_SuiteHandler.cpp ships in the AE SDK's Util/ folder and defines
+    # the suite-caching class that EntryPoint.cpp / Commands.cpp use to
+    # access AEGP_*Suite vtables. The header alone isn't enough -- without
+    # the .cpp the linker errors with unresolved externals on every
+    # AEGP_SuiteHandler member function.
+    "${ADOBE_AE_SDK_SUITE_HANDLER_CPP}"
 )
 
 target_include_directories(ae-shell PRIVATE include)

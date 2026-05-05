@@ -68,6 +68,29 @@ find_path(ADOBE_AE_SDK_SP_INCLUDE_DIR
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers/SP"
     NO_DEFAULT_PATH)
 
+# AEGP_SuiteHandler.{h,cpp} live in the SDK's Util/ folder. We need both
+# the directory on the include path AND the .cpp added to plugin sources
+# (it defines the AEGP_SuiteHandler class methods that EntryPoint.cpp etc.
+# call into).
+find_path(ADOBE_AE_SDK_UTIL_DIR
+    NAMES AEGP_SuiteHandler.h
+    HINTS
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Util"
+        "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Util"
+        "${ADOBE_AE_SDK_INCLUDE_DIR}/Util"
+        "${ADOBE_AE_SDK_INCLUDE_DIR}"
+    NO_DEFAULT_PATH)
+
+find_file(ADOBE_AE_SDK_SUITE_HANDLER_CPP
+    NAMES AEGP_SuiteHandler.cpp
+    HINTS
+        "${ADOBE_AE_SDK_UTIL_DIR}"
+        "${ADOBE_AE_SDK_ROOT}/Util"
+        "${ADOBE_AE_SDK_ROOT}/Examples/Util"
+    NO_DEFAULT_PATH)
+
 # PiPLtool.exe is the most reliable anchor for the Resources/ folder across
 # SDK versions. (In pre-2024 SDKs we could anchor on AE_PluginData.h, but
 # Adobe moved that file into Headers/ starting with the AE 2025 release.)
@@ -98,7 +121,9 @@ find_package_handle_standard_args(AdobeAESDK
         ADOBE_AE_SDK_ROOT
         ADOBE_AE_SDK_INCLUDE_DIR
         ADOBE_AE_SDK_SP_INCLUDE_DIR
-        ADOBE_AE_SDK_RESOURCES_DIR)
+        ADOBE_AE_SDK_RESOURCES_DIR
+        ADOBE_AE_SDK_UTIL_DIR
+        ADOBE_AE_SDK_SUITE_HANDLER_CPP)
 
 if(WIN32 AND NOT ADOBE_AE_SDK_PIPLTOOL)
     message(WARNING
@@ -119,7 +144,8 @@ if(AdobeAESDK_FOUND AND NOT TARGET AdobeAESDK::AdobeAESDK)
     target_include_directories(AdobeAESDK::AdobeAESDK INTERFACE
         "${ADOBE_AE_SDK_INCLUDE_DIR}"
         "${ADOBE_AE_SDK_SP_INCLUDE_DIR}"
-        "${ADOBE_AE_SDK_RESOURCES_DIR}")
+        "${ADOBE_AE_SDK_RESOURCES_DIR}"
+        "${ADOBE_AE_SDK_UTIL_DIR}")
 endif()
 
 # Mirror the legacy uppercase variant for callers that expected the older
@@ -130,4 +156,6 @@ mark_as_advanced(
     ADOBE_AE_SDK_INCLUDE_DIR
     ADOBE_AE_SDK_SP_INCLUDE_DIR
     ADOBE_AE_SDK_RESOURCES_DIR
+    ADOBE_AE_SDK_UTIL_DIR
+    ADOBE_AE_SDK_SUITE_HANDLER_CPP
     ADOBE_AE_SDK_PIPLTOOL)
