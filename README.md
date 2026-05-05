@@ -55,8 +55,8 @@ phase breakdown.
 | Adobe After Effects | **2025** (24.x or 23.x also work) | Plugin is built against AE SDK 2025; backwards-compatible with AE 22+. |
 | Adobe AE SDK | **2025** | Free download, requires Adobe ID. **Not** redistributable, never committed to this repo. |
 | Visual Studio | **2022** (Community is fine) | Workload: *Desktop development with C++*. |
-| Qt | **6.6+** (MSVC 2022 64-bit) | LGPL build, free for this use. |
-| CMake | **3.25+** | Bundled with VS 2022 is fine. |
+| Qt | **6.6+** (`win64_msvc2019_64` build is what Qt ships for 6.6/6.7; ABI-compatible with VS 2022) | LGPL build, free for this use. |
+| CMake | **3.22+** | Bundled with VS 2022 is fine. |
 
 ---
 
@@ -88,8 +88,8 @@ must download it locally.
 
 1. Download the [Qt Online Installer](https://www.qt.io/download-open-source).
 2. Pick the LGPL/Open Source option, free.
-3. In the components selector pick **Qt 6.6+** → **MSVC 2022 64-bit**.
-4. Note the install path, typically `C:\Qt\6.6.x\msvc2022_64`.
+3. In the components selector pick **Qt 6.6+** → **MSVC 2019 64-bit** (this is Qt's official Windows toolchain for 6.6/6.7; the binaries are ABI-compatible with Visual Studio 2022). The `msvc2022_64` build only appears starting with Qt 6.8.
+4. Note the install path, typically `C:\Qt\6.6.x\msvc2019_64`.
 5. Set `CMAKE_PREFIX_PATH` to point there, or pass it on the CMake command line.
 
 ### 4. Clone
@@ -108,7 +108,7 @@ cd ae-shell
 ```powershell
 cmake -S . -B build `
       -G "Visual Studio 17 2022" -A x64 `
-      -DCMAKE_PREFIX_PATH="C:/Qt/6.6.0/msvc2022_64" `
+      -DCMAKE_PREFIX_PATH="C:/Qt/6.6.3/msvc2019_64" `
       -DADOBE_AE_SDK="$env:ADOBE_AE_SDK"
 cmake --build build --config Release
 ```
