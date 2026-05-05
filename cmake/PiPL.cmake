@@ -50,11 +50,17 @@ function(ae_shell_add_pipl_resource TARGET)
     # does not invoke a shell, so a stdout `>` redirect would be passed as
     # a literal argv to cl. The helper uses execute_process(... OUTPUT_FILE)
     # to capture cl's stdout into the .rr file safely.
+    # cl.exe handles both C and C++ on MSVC -- there is just one binary, and
+    # the language is selected by /Tc vs /Tp. We use CMAKE_CXX_COMPILER here
+    # rather than CMAKE_C_COMPILER because the project enables `LANGUAGES CXX`
+    # only, so CMAKE_C_COMPILER is not initialized and would be empty,
+    # causing the helper to abort with "CL_PATH not set". /Tc inside the
+    # helper still forces C-language pre-processing for the .r file.
     set(_pipl_helper "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/preprocess_pipl.cmake")
     add_custom_command(
         OUTPUT  "${RR_FILE}"
         COMMAND "${CMAKE_COMMAND}"
-                "-DCL_PATH=${CMAKE_C_COMPILER}"
+                "-DCL_PATH=${CMAKE_CXX_COMPILER}"
                 "-DSOURCE=${ARG_PIPL_FILE}"
                 "-DOUTPUT=${RR_FILE}"
                 "-DINCLUDES=${_pipl_includes}"
