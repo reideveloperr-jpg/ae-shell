@@ -68,8 +68,11 @@ find_path(ADOBE_AE_SDK_SP_INCLUDE_DIR
         "${ADOBE_AE_SDK_ROOT}/AfterEffectsSDK/Examples/Headers/SP"
     NO_DEFAULT_PATH)
 
+# PiPLtool.exe is the most reliable anchor for the Resources/ folder across
+# SDK versions. (In pre-2024 SDKs we could anchor on AE_PluginData.h, but
+# Adobe moved that file into Headers/ starting with the AE 2025 release.)
 find_path(ADOBE_AE_SDK_RESOURCES_DIR
-    NAMES AE_PluginData.h
+    NAMES PiPLtool.exe PIPL.h AE_PluginData.h
     HINTS
         "${ADOBE_AE_SDK_ROOT}/Resources"
         "${ADOBE_AE_SDK_ROOT}/Examples/Resources"
