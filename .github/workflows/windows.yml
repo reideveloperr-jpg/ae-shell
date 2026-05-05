@@ -20,7 +20,10 @@ jobs:
           version: '6.6.3'
           host: windows
           target: desktop
-          arch: win64_msvc2022_64
+          # Qt 6.6 ships only the MSVC 2019 toolchain for Windows; the 2022
+          # toolchain ABI didn't appear until Qt 6.8. The MSVC 2019 binaries
+          # are fully compatible with Visual Studio 2022.
+          arch: win64_msvc2019_64
           cache: true
           modules: ''
 
